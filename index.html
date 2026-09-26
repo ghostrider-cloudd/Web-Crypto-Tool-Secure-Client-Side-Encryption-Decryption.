@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cipher Vault — Web Crypto Tool</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23C9A24B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='11' width='18' height='11' rx='2' ry='2'%3E%3C/rect%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'%3E%3C/path%3E%3C/svg%3E">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #0D1117;
+            --bg-panel: #141B27;
+            --bg-panel-2: #1B2433;
+            --bg-field: #10151F;
+            --border: #2B3547;
+            --border-soft: #202A3B;
+            --text-primary: #E9E6DA;
+            --text-secondary: #8C97AC;
+            --text-dim: #5C6579;
+            --brass: #C9A24B;
+            --brass-soft: #a6893f;
+            --teal: #4F8A8B;
+            --rust: #B0564F;
+            --green: #6E9B6E;
+            color-scheme: dark;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'IBM Plex Mono', monospace;
+            background:
+                radial-gradient(ellipse 900px 500px at 50% -10%, rgba(201,162,75,0.07), transparent),
+                var(--bg);
+            color: var(--text-primary);
+            margin: 0;
+            min-height: 100vh;
+            padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px) 0;
+        }
+
+        h1, h2, h3, .display-face { font-family: 'Space Grotesk', sans-serif; }
+
+        ::selection { background: rgba(201,162,75,0.35); }
+
+        /* ---- Structural chrome ---- */
+        .vault-shell {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 2rem 1.25rem 3rem;
+        }
+        .vault-panel {
+            background: linear-gradient(180deg, var(--bg-panel), var(--bg-panel) 60%, var(--bg-panel-2));
+            border: 1px solid var(--border);
+            border-radius: 14px;
+        }
+        .seam {
+            border-top: 1px solid var(--border-soft);
+        }
+        .field-label {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            font-size: 0.8rem;
+            letter-spacing: 0.02em;
+            color: var(--text-secondary);
+        }
+        textarea, select, input[type="text"], input[type="password"] {
+            background: var(--bg-field) !important;
+            border: 1px solid var(--border) !important;
+            color: var(--text-primary) !important;
+            font-family: 'IBM Plex Mono', monospace;
+        }
+        textarea::placeholder, input::placeholder { color: var(--text-dim); }
+        textarea:focus, select:focus, input:focus {
+            outline: none !important;
+            border-color: var(--brass) !important;
+            box-shadow: 0 0 0 3px rgba(201,162,75,0.15) !important;
+        }
+        textarea { resize: none; }
+
+        /* ---- Remap original Tailwind utility hooks used directly by JS ---- */
+        .bg-gray-900 { background-color: var(--bg) !important; }
+        .bg-gray-800 { background-color: var(--bg-panel) !important; }
+        .bg-gray-700 { background-color: var(--bg-field) !important; }
+        .bg-gray-600 { background-color: var(--border) !important; }
+        .hover\:bg-gray-600:hover { background-color: var(--border-soft) !important; }
+        .hover\:bg-gray-500:hover { background-color: #33405a !important; }
+        .bg-gray-900\/50 { background-color: rgba(13,17,23,0.55) !important; }
+        .border-gray-600, .border-gray-700 { border-color: var(--border) !important; }
+        .text-gray-300, .text-gray-400 { color: var(--text-secondary) !important; }
+        .text-gray-100 { color: var(--text-primary) !important; }
+        .text-gray-500 { color: var(--text-dim) !important; }
+
+        .bg-cyan-500 { background-color: var(--brass) !important; color: #12161F !important; }
+        .hover\:bg-cyan-600:hover { background-color: var(--brass-soft) !important; }
+        .text-cyan-400, .hover\:text-cyan-400:hover { color: var(--brass) !important; }
+        .focus\:ring-cyan-500:focus, .focus\:border-cyan-500:focus {
+            border-color: var(--brass) !important;
+            box-shadow: 0 0 0 3px rgba(201,162,75,0.15) !important;
+        }
+        .bg-indigo-600\/90 { background-color: var(--teal) !important; }
+        .hover\:bg-indigo-700\/90:hover { background-color: #3e7071 !important; }
+
+        .bg-red-500 { background-color: var(--rust) !important; }
+        .bg-yellow-500 { background-color: var(--brass) !important; }
+        .bg-green-500 { background-color: var(--green) !important; }
+
+        .drag-over {
+            border-color: var(--brass) !important;
+            box-shadow: 0 0 0 3px rgba(201,162,75,0.18) !important;
+            background-color: rgba(201,162,75,0.04) !important;
+        }
+
+        /* ---- Icon buttons in the workspace toolbars ---- */
+        .tool-btn {
+            width: 2.1rem; height: 2.1rem;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 8px;
+            background: var(--bg-field);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            transition: color .15s ease, border-color .15s ease, transform .1s ease;
+        }
+        .tool-btn:hover { color: var(--brass); border-color: var(--brass-soft); }
+        .tool-btn:active { transform: scale(0.94); }
+        .tool-btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+        /* ---- Operation toggle ---- */
+        .op-toggle { background: var(--bg-field); border: 1px solid var(--border); border-radius: 10px; padding: 4px; }
+        .op-toggle button { border-radius: 7px; transition: background .15s ease, color .15s ease; }
+
+        /* ---- Process button ---- */
+        #process-btn {
+            font-family: 'Space Grotesk', sans-serif;
+            letter-spacing: 0.01em;
+            box-shadow: 0 8px 24px -8px rgba(201,162,75,0.45);
+        }
+        #process-btn:focus-visible, .tool-btn:focus-visible, button:focus-visible, select:focus-visible {
+            outline: 2px solid var(--brass); outline-offset: 2px;
+        }
+
+        /* ---- Status pill ---- */
+        .status-pill {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em;
+            padding: 0.3rem 0.7rem;
+            border-radius: 999px;
+            background: rgba(110,155,110,0.12);
+            border: 1px solid rgba(110,155,110,0.35);
+            color: var(--green);
+        }
+        .status-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(110,155,110,0.2); }
+
+        /* ---- Key cards ---- */
+        .key-card { border-radius: 12px; border: 1px solid var(--border); background: var(--bg-panel-2); }
+        .key-card.private { border-color: rgba(176,86,79,0.4); }
+        .key-card .key-head { border-bottom: 1px solid var(--border-soft); }
+        .key-card.private .key-head { border-bottom-color: rgba(176,86,79,0.25); }
+
+        /* ---- Tooltips (structure kept; JS toggles .show) ---- */
+        .tooltip-container {
+            opacity: 0; visibility: hidden; transform: translateY(6px);
+            transition: opacity .18s ease, transform .18s ease, visibility .18s ease;
+        }
+        .tooltip-container.show { opacity: 1; visibility: visible; transform: translateY(0); }
+        .tooltip-card {
+            background: var(--bg-panel-2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 20px 40px -12px rgba(0,0,0,0.55);
+        }
+
+        /* ---- Responsive safety ---- */
+        .wide-scroll { overflow-x: auto; max-width: 100%; }
+        @media (max-width: 480px) {
+            .vault-shell { padding: 1.25rem 0.85rem 2rem; }
+        }
+
+        a:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+    </style>
+</head>
+
+<body>
+    <div class="vault-shell">
+
+        <!-- Header -->
+        <header class="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-lg flex items-center justify-center shrink-0" style="background: rgba(201,162,75,0.1); border:1px solid rgba(201,162,75,0.35);">
+                    <i class="fas fa-vault" style="color: var(--brass); font-size:1.1rem;" aria-hidden="true"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-bold" style="letter-spacing:-0.01em;">Cipher Vault</h1>
+                    <p class="text-sm" style="color: var(--text-secondary);">AES-GCM &amp; RSA-OAEP, processed entirely in your browser.</p>
+                </div>
+            </div>
+            <span class="status-pill self-start sm:self-auto" role="status">
+                <span class="dot" aria-hidden="true"></span> Client-side only — nothing leaves this tab
+            </span>
+        </header>
+
+        <!-- Main panel -->
+        <div class="vault-panel p-4 sm:p-6 space-y-6">
+
+            <!-- Controls Section -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="flex flex-col">
+                    <label class="field-label mb-2" id="op-label">Operation</label>
+                    <div class="op-toggle flex" role="group" aria-labelledby="op-label">
+                        <button id="op-encrypt" class="flex-1 p-2.5 text-sm font-medium bg-cyan-500 text-white shadow" aria-pressed="true">
+                            <i class="fas fa-lock mr-2" aria-hidden="true"></i>Encrypt
+                        </button>
+                        <button id="op-decrypt" class="flex-1 p-2.5 text-sm font-medium text-gray-300" aria-pressed="false">
+                             <i class="fas fa-key mr-2" aria-hidden="true"></i>Decrypt
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col">
+                    <label for="algorithm" class="field-label mb-2">Algorithm</label>
+                    <select id="algorithm" class="w-full p-2.5 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 transition-colors" style="appearance:none; -webkit-appearance:none; background-image:url(&quot;data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238C97AC' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e&quot;); background-repeat:no-repeat; background-position: right 0.75rem center; background-size:1.2em; padding-right:2.5rem;">
+                        <option value="aes" selected>AES-GCM (Password)</option>
+                        <option value="rsa">RSA-OAEP (Key Pair)</option>
+                    </select>
+                </div>
+
+                <div id="key-input-area" class="flex flex-col">
+                    <div id="aes-key-section">
+                        <label for="aes-password" class="field-label mb-2 block">Password / Secret Key</label>
+                        <input type="password" id="aes-password" placeholder="Enter your secret password" class="w-full p-2.5 rounded-lg focus:ring-cyan-500 focus:border-cyan-500" aria-describedby="password-strength-text">
+                        <div class="mt-2">
+                            <div id="password-strength-bar" class="w-full rounded-full h-1.5" style="background: var(--bg-field); border:1px solid var(--border);">
+                                <div id="password-strength-bar-inner" class="h-1.5 rounded-full" style="width: 0%;"></div>
+                            </div>
+                            <p id="password-strength-text" class="text-xs mt-1 text-right" style="color: var(--text-secondary);"></p>
+                        </div>
+                    </div>
+                    <div id="rsa-key-section" class="hidden">
+                         <label class="field-label mb-2 block">Key Management</label>
+                         <button id="generate-rsa-keys" class="w-full p-2.5 rounded-lg text-sm font-medium bg-indigo-600/90 hover:bg-indigo-700/90" style="color:#0D1117; font-family:'Space Grotesk',sans-serif; font-weight:600;">
+                            <i class="fas fa-shield-halved mr-2" aria-hidden="true"></i>Generate New RSA Keys
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="seam"></div>
+
+            <!-- Text Areas Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="flex flex-col space-y-2">
+                    <div class="flex justify-between items-center">
+                        <label for="input-text" class="field-label">Input</label>
+                        <div class="flex items-center gap-2">
+                            <button id="paste-input" class="tool-btn" aria-label="Paste from clipboard" title="Paste"><i class="fas fa-paste" aria-hidden="true"></i></button>
+                            <button id="upload-file" class="tool-btn" aria-label="Upload file" title="Upload file"><i class="fas fa-upload" aria-hidden="true"></i></button>
+                            <button id="clear-input" class="tool-btn" aria-label="Clear input" title="Clear input"><i class="fas fa-times" aria-hidden="true"></i></button>
+                            <input type="file" id="file-input" class="hidden"/>
+                        </div>
+                    </div>
+                    <textarea id="input-text" rows="10" class="w-full p-3 rounded-lg focus:ring-cyan-500 focus:border-cyan-500" placeholder="Type, paste, or drag & drop a file here..." aria-label="Input text or file"></textarea>
+                </div>
+
+                <div class="flex flex-col space-y-2">
+                     <div class="flex justify-between items-center">
+                        <label for="output-text" class="field-label">Output</label>
+                        <div class="flex items-center gap-2">
+                            <button id="copy-output" class="tool-btn" aria-label="Copy output" title="Copy"><i class="fas fa-copy" aria-hidden="true"></i></button>
+                            <button id="download-output" class="tool-btn" aria-label="Download output" title="Download"><i class="fas fa-download" aria-hidden="true"></i></button>
+                            <button id="clear-output" class="tool-btn" aria-label="Clear output" title="Clear output"><i class="fas fa-times" aria-hidden="true"></i></button>
+                        </div>
+                    </div>
+                    <textarea id="output-text" rows="10" readonly class="w-full p-3 rounded-lg cursor-not-allowed" placeholder="Result will appear here..." aria-label="Output result" style="background: var(--bg) !important;"></textarea>
+                </div>
+            </div>
+
+            <!-- RSA Key Display Area -->
+            <div id="rsa-keys-display" class="hidden pt-2">
+                <div class="seam pt-6">
+                    <h2 class="text-lg font-semibold text-center mb-5" style="color: var(--text-secondary);">RSA Key Pair</h2>
+                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                        <div class="key-card">
+                            <div class="key-head flex justify-between items-center px-4 py-2.5">
+                                <label for="public-key" class="field-label" style="color:var(--brass);"><i class="fas fa-unlock mr-1.5" aria-hidden="true"></i>Public key <span class="font-normal" style="color:var(--text-dim);">(for encrypting)</span></label>
+                                <div class="flex items-center gap-2">
+                                    <button id="import-public-key" class="tool-btn" aria-label="Import public key" title="Import"><i class="fas fa-file-import" aria-hidden="true"></i></button>
+                                    <button id="export-public-key" class="tool-btn" aria-label="Export public key" title="Export"><i class="fas fa-file-export" aria-hidden="true"></i></button>
+                                    <input type="file" id="public-key-input" class="hidden" accept=".json, .txt"/>
+                                </div>
+                            </div>
+                            <textarea id="public-key" rows="6" class="w-full p-3 rounded-b-xl" placeholder="Your generated public key..." aria-label="Public key" style="background: var(--bg-field) !important; border:none !important;"></textarea>
+                        </div>
+                        <div class="key-card private">
+                             <div class="key-head flex justify-between items-center px-4 py-2.5">
+                                <label for="private-key" class="field-label" style="color: var(--rust);"><i class="fas fa-lock mr-1.5" aria-hidden="true"></i>Private key <span class="font-normal" style="color:var(--text-dim);">— keep secure</span></label>
+                                 <div class="flex items-center gap-2">
+                                    <button id="import-private-key" class="tool-btn" aria-label="Import private key" title="Import"><i class="fas fa-file-import" aria-hidden="true"></i></button>
+                                    <button id="export-private-key" class="tool-btn" aria-label="Export private key" title="Export"><i class="fas fa-file-export" aria-hidden="true"></i></button>
+                                     <input type="file" id="private-key-input" class="hidden" accept=".json, .txt"/>
+                                </div>
+                            </div>
+                            <textarea id="private-key" rows="6" class="w-full p-3 rounded-b-xl" placeholder="Your generated private key..." aria-label="Private key" style="background: var(--bg-field) !important; border:none !important;"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Bar -->
+            <footer class="seam pt-5 mt-2 flex items-center justify-between gap-4">
+                <div class="group relative">
+                    <button id="warning-icon" class="tool-btn" style="width:2.4rem;height:2.4rem;" aria-label="Security warnings">
+                        <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                    </button>
+                    <div id="warning-tooltip" class="tooltip-container fixed bottom-4 left-4 right-4 w-auto md:absolute md:bottom-full md:left-0 md:right-auto md:w-72 mb-0 md:mb-3 z-50">
+                        <div class="tooltip-card relative p-4">
+                            <div class="flex items-center gap-3 mb-2">
+                                <div class="flex items-center justify-center w-8 h-8 rounded-full" style="background: rgba(176,86,79,0.15);">
+                                   <i class="fas fa-triangle-exclamation" style="color: var(--rust);" aria-hidden="true"></i>
+                                </div>
+                                <h3 class="text-sm font-semibold" style="color: var(--rust);">Important warnings</h3>
+                            </div>
+                            <ul class="list-disc list-inside space-y-1 text-sm" style="color: var(--text-secondary);">
+                                <li><strong style="color:var(--text-primary);">Never lose your password or private key.</strong> They cannot be recovered.</li>
+                                <li>This tool operates entirely in your browser. No data is sent to any server.</li>
+                                <li>For sensitive information, always use a strong, unique password.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-center gap-3 flex-grow">
+                    <button id="process-btn" class="flex-grow sm:flex-grow-0 px-6 sm:px-10 py-3 bg-cyan-500 hover:bg-cyan-600 rounded-lg text-base font-bold transition-transform transform hover:scale-105">
+                        <i class="fas fa-bolt mr-2" aria-hidden="true"></i> Process
+                    </button>
+                     <button id="clear-btn" class="px-4 py-3 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm font-medium" style="color: var(--text-primary);">
+                        <i class="fas fa-times" aria-hidden="true"></i> <span class="hidden sm:inline-block ml-2">Clear all</span>
+                    </button>
+                </div>
+
+                <div class="group relative">
+                    <button id="algo-icon" class="tool-btn" style="width:2.4rem;height:2.4rem;" aria-label="Algorithm information">
+                        <i class="fas fa-circle-info" aria-hidden="true"></i>
+                    </button>
+                    <div id="algo-tooltip" class="tooltip-container fixed bottom-4 left-4 right-4 w-auto md:absolute md:bottom-full md:right-0 md:left-auto md:w-72 mb-0 md:mb-3 z-50">
+                        <div class="tooltip-card relative p-4">
+                            <div class="flex items-center gap-3 mb-2">
+                                <div class="flex items-center justify-center w-8 h-8 rounded-full" style="background: rgba(79,138,139,0.15);">
+                                    <i class="fas fa-circle-info" style="color: var(--teal);" aria-hidden="true"></i>
+                                </div>
+                                <h3 class="text-sm font-semibold" style="color: var(--teal);">Algorithm information</h3>
+                            </div>
+                            <div id="algo-tooltip-content" class="space-y-2 text-sm" style="color: var(--text-secondary);"></div>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div>
+
+        <!-- Site footer -->
+        <footer class="text-center pt-8 pb-2">
+            <p class="text-sm mb-4" style="color: var(--text-dim);">Cipher Vault · encryption and decryption run locally in your browser — no server, no upload, no storage.</p>
+            <div class="flex items-center justify-center space-x-6">
+                <a href="https://www.linkedin.com/in/rjunm/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" class="transition-colors duration-200" style="color: var(--text-secondary);" onmouseover="this.style.color='var(--brass)'" onmouseout="this.style.color='var(--text-secondary)'">
+                    <i class="fab fa-linkedin-in fa-lg" aria-hidden="true"></i>
+                </a>
+                <a href="mailto:arjunmehandrakar06@gmail.com" aria-label="Email" class="transition-colors duration-200" style="color: var(--text-secondary);" onmouseover="this.style.color='var(--brass)'" onmouseout="this.style.color='var(--text-secondary)'">
+                    <i class="fas fa-envelope fa-lg" aria-hidden="true"></i>
+                </a>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Main Application Logic (unchanged functionality) -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // =================================================================================
+            // I. STATE MANAGEMENT
+            // =================================================================================
+            let currentOperation = 'encrypt';
+            let currentAlgorithm = 'aes';
+            let uploadedFile = null;
+            let encryptedFileBlob = null;
+            let decryptedFileBlob = null;
+            let rsaKeyPair = null;
+
+            // =================================================================================
+            // II. DOM ELEMENT SELECTION
+            // =================================================================================
+            const opEncryptBtn = document.getElementById('op-encrypt');
+            const opDecryptBtn = document.getElementById('op-decrypt');
+            const algorithmSelect = document.getElementById('algorithm');
+            const processBtn = document.getElementById('process-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            const inputText = document.getElementById('input-text');
+            const outputText = document.getElementById('output-text');
+            const aesKeySection = document.getElementById('aes-key-section');
+            const rsaKeySection = document.getElementById('rsa-key-section');
+            const aesPasswordInput = document.getElementById('aes-password');
+            const generateRsaKeysBtn = document.getElementById('generate-rsa-keys');
+            const rsaKeysDisplay = document.getElementById('rsa-keys-display');
+            const publicKeyTextarea = document.getElementById('public-key');
+            const privateKeyTextarea = document.getElementById('private-key');
+            const fileInput = document.getElementById('file-input');
+            const uploadFileBtn = document.getElementById('upload-file');
+            const copyOutputBtn = document.getElementById('copy-output');
+            const pasteInputBtn = document.getElementById('paste-input');
+            const downloadOutputBtn = document.getElementById('download-output');
+            const clearInputBtn = document.getElementById('clear-input');
+            const clearOutputBtn = document.getElementById('clear-output');
+            const passwordStrengthBarInner = document.getElementById('password-strength-bar-inner');
+            const passwordStrengthText = document.getElementById('password-strength-text');
+            const exportPublicKeyBtn = document.getElementById('export-public-key');
+            const exportPrivateKeyBtn = document.getElementById('export-private-key');
+            const importPublicKeyBtn = document.getElementById('import-public-key');
+            const importPrivateKeyBtn = document.getElementById('import-private-key');
+            const publicKeyFileInput = document.getElementById('public-key-input');
+            const privateKeyFileInput = document.getElementById('private-key-input');
+            const algoTooltipContent = document.getElementById('algo-tooltip-content');
+            const warningIcon = document.getElementById('warning-icon');
+            const algoIcon = document.getElementById('algo-icon');
+            const warningTooltip = document.getElementById('warning-tooltip');
+            const algoTooltip = document.getElementById('algo-tooltip');
+
+            // =================================================================================
+            // III. HELPER FUNCTIONS
+            // =================================================================================
+            function arrayBufferToBase64(buffer) {
+                let binary = '';
+                const bytes = new Uint8Array(buffer);
+                for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                return window.btoa(binary);
+            }
+
+            function base64ToArrayBuffer(base64) {
+                const binary_string = window.atob(base64);
+                const bytes = new Uint8Array(binary_string.length);
+                for (let i = 0; i < binary_string.length; i++) {
+                    bytes[i] = binary_string.charCodeAt(i);
+                }
+                return bytes.buffer;
+            }
+
+            function showAlert(message) {
+                alert(message);
+            }
+
+            function downloadFile(filename, data) {
+                const blob = data instanceof Blob ? data : new Blob([data]);
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            }
+
+            // =================================================================================
+            // IV. UI UPDATE FUNCTIONS
+            // =================================================================================
+            function updateOperationUI() {
+                if (currentOperation === 'encrypt') {
+                    opEncryptBtn.classList.add('bg-cyan-500', 'text-white', 'shadow');
+                    opEncryptBtn.classList.remove('text-gray-300');
+                    opEncryptBtn.setAttribute('aria-pressed', 'true');
+                    opDecryptBtn.classList.remove('bg-cyan-500', 'text-white', 'shadow');
+                    opDecryptBtn.classList.add('text-gray-300');
+                    opDecryptBtn.setAttribute('aria-pressed', 'false');
+                    processBtn.innerHTML = '<i class="fas fa-bolt mr-2"></i> Encrypt';
+                } else {
+                    opDecryptBtn.classList.add('bg-cyan-500', 'text-white', 'shadow');
+                    opDecryptBtn.classList.remove('text-gray-300');
+                    opDecryptBtn.setAttribute('aria-pressed', 'true');
+                    opEncryptBtn.classList.remove('bg-cyan-500', 'text-white', 'shadow');
+                    opEncryptBtn.classList.add('text-gray-300');
+                    opEncryptBtn.setAttribute('aria-pressed', 'false');
+                    processBtn.innerHTML = '<i class="fas fa-key mr-2"></i> Decrypt';
+                }
+            }
+
+            function updateAlgorithmUI() {
+                if (currentAlgorithm === 'aes') {
+                    aesKeySection.classList.remove('hidden');
+                    rsaKeySection.classList.add('hidden');
+                    rsaKeysDisplay.classList.add('hidden');
+                } else {
+                    aesKeySection.classList.add('hidden');
+                    rsaKeySection.classList.remove('hidden');
+                    if(publicKeyTextarea.value || privateKeyTextarea.value) {
+                         rsaKeysDisplay.classList.remove('hidden');
+                    }
+                }
+            }
+
+            function updateAlgoTooltip() {
+                const tooltips = {
+                    aes: `
+                        <h4 class="text-sm font-semibold mb-1" style="color: var(--text-primary);">AES-GCM (Symmetric)</h4>
+                        <p class="text-sm">Fast &amp; secure. Uses a single password to both encrypt and decrypt. Ideal for encrypting large files and data streams.</p>
+                    `,
+                    rsa: `
+                        <h4 class="text-sm font-semibold mb-1" style="color: var(--text-primary);">RSA-OAEP (Asymmetric)</h4>
+                        <p class="text-sm">Uses a key pair: a public key to encrypt and a private key to decrypt. Good for secure communication, but slower and limited to small amounts of data.</p>
+                    `
+                };
+                algoTooltipContent.innerHTML = tooltips[currentAlgorithm];
+            }
+
+            function updatePasswordStrengthUI(password) {
+                let score = 0;
+                if (!password) {
+                    passwordStrengthBarInner.style.width = '0%';
+                    passwordStrengthText.textContent = '';
+                    return;
+                }
+                if (password.length > 8) score++;
+                if (password.length > 12) score++;
+                if (/[a-z]/.test(password)) score++;
+                if (/[A-Z]/.test(password)) score++;
+                if (/[0-9]/.test(password)) score++;
+                if (/[^A-Za-z0-9]/.test(password)) score++;
+
+                const strength = {
+                    0: { text: '', color: '' }, 1: { text: 'Very Weak', color: 'bg-red-500' }, 2: { text: 'Weak', color: 'bg-red-500' },
+                    3: { text: 'Okay', color: 'bg-yellow-500' }, 4: { text: 'Good', color: 'bg-yellow-500' }, 5: { text: 'Strong', color: 'bg-green-500' },
+                    6: { text: 'Very Strong', color: 'bg-green-500' },
+                };
+
+                const { text, color } = strength[score];
+                passwordStrengthBarInner.style.width = `${(score / 6) * 100}%`;
+                passwordStrengthBarInner.className = `h-1.5 rounded-full ${color}`;
+                passwordStrengthText.textContent = text;
+            }
+
+            // =================================================================================
+            // V. CRYPTOGRAPHIC FUNCTIONS
+            // =================================================================================
+            async function deriveKey(password, salt) {
+                const enc = new TextEncoder();
+                const keyMaterial = await window.crypto.subtle.importKey('raw', enc.encode(password), { name: 'PBKDF2' }, false, ['deriveKey']);
+                return window.crypto.subtle.deriveKey(
+                    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+                    keyMaterial,
+                    { name: 'AES-GCM', length: 256 },
+                    true,
+                    ['encrypt', 'decrypt']
+                );
+            }
+
+            async function encryptAES(data, password) {
+                const salt = window.crypto.getRandomValues(new Uint8Array(16));
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                const key = await deriveKey(password, salt);
+                const encryptedData = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
+
+                const combined = new Uint8Array(salt.length + iv.length + encryptedData.byteLength);
+                combined.set(salt, 0);
+                combined.set(iv, salt.length);
+                combined.set(new Uint8Array(encryptedData), salt.length + iv.length);
+                return combined.buffer;
+            }
+
+            async function decryptAES(encryptedData, password) {
+                try {
+                    const salt = encryptedData.slice(0, 16);
+                    const iv = encryptedData.slice(16, 28);
+                    const data = encryptedData.slice(28);
+                    const key = await deriveKey(password, salt);
+                    return await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+                } catch (error) {
+                    throw new Error("Decryption failed. Check password or data integrity.");
+                }
+            }
+
+            async function generateRsaKeyPair() {
+                return await window.crypto.subtle.generateKey(
+                    { name: 'RSA-OAEP', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+                    true,
+                    ['encrypt', 'decrypt']
+                );
+            }
+
+            async function encryptRSA(data, publicKey) {
+                return await window.crypto.subtle.encrypt({ name: 'RSA-OAEP' }, publicKey, data);
+            }
+
+            async function decryptRSA(encryptedData, privateKey) {
+                 try {
+                    return await window.crypto.subtle.decrypt({ name: 'RSA-OAEP' }, privateKey, encryptedData);
+                } catch (error) {
+                    throw new Error("Decryption failed. Check private key or data integrity.");
+                }
+            }
+
+            // =================================================================================
+            // VI. EVENT LISTENERS
+            // =================================================================================
+            function swapIO() {
+                if (uploadedFile || decryptedFileBlob || encryptedFileBlob) {
+                    outputText.value = '';
+                    return;
+                }
+                const temp = inputText.value;
+                inputText.value = outputText.value;
+                outputText.value = temp;
+            }
+
+            opEncryptBtn.addEventListener('click', () => {
+                if (currentOperation !== 'encrypt') {
+                    currentOperation = 'encrypt';
+                    updateOperationUI();
+                    swapIO();
+                }
+            });
+            opDecryptBtn.addEventListener('click', () => {
+                if (currentOperation !== 'decrypt') {
+                    currentOperation = 'decrypt';
+                    updateOperationUI();
+                    swapIO();
+                }
+            });
+
+            algorithmSelect.addEventListener('change', (e) => { currentAlgorithm = e.target.value; updateAlgorithmUI(); updateAlgoTooltip(); });
+
+            clearBtn.addEventListener('click', () => {
+                inputText.value = ''; outputText.value = ''; aesPasswordInput.value = '';
+                publicKeyTextarea.value = ''; privateKeyTextarea.value = '';
+                rsaKeysDisplay.classList.add('hidden');
+                uploadedFile = null; rsaKeyPair = null; decryptedFileBlob = null; encryptedFileBlob = null;
+                updatePasswordStrengthUI('');
+            });
+
+            processBtn.addEventListener('click', async () => {
+                let inputData;
+                const originalBtnContent = processBtn.innerHTML;
+                processBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
+                processBtn.disabled = true;
+
+                try {
+                    if (uploadedFile) {
+                        inputData = uploadedFile.data;
+                    } else {
+                        if (!inputText.value) { showAlert("Input is empty."); return; }
+                        inputData = (currentOperation === 'decrypt') ? base64ToArrayBuffer(inputText.value) : new TextEncoder().encode(inputText.value);
+                    }
+
+                    let result;
+                    if (currentAlgorithm === 'aes') {
+                        const password = aesPasswordInput.value;
+                        if (!password) { showAlert("Password is required for AES."); return; }
+                        result = (currentOperation === 'encrypt') ? await encryptAES(inputData, password) : await decryptAES(inputData, password);
+                    } else {
+                        if (currentOperation === 'encrypt') {
+                             if (!publicKeyTextarea.value) { showAlert('Public Key is required.'); return; }
+                             const publicKey = await window.crypto.subtle.importKey('jwk', JSON.parse(publicKeyTextarea.value), { name: 'RSA-OAEP', hash: 'SHA-256' }, true, ['encrypt']);
+                             result = await encryptRSA(inputData, publicKey);
+                        } else {
+                             if (!privateKeyTextarea.value) { showAlert('Private Key is required.'); return; }
+                             const privateKey = await window.crypto.subtle.importKey('jwk', JSON.parse(privateKeyTextarea.value), { name: 'RSA-OAEP', hash: 'SHA-256' }, true, ['decrypt']);
+                             result = await decryptRSA(inputData, privateKey);
+                        }
+                    }
+
+                    decryptedFileBlob = null;
+                    encryptedFileBlob = null;
+
+                    if (currentOperation === 'encrypt') {
+                        if (uploadedFile) {
+                            encryptedFileBlob = new Blob([result]);
+                            outputText.value = `✅ File encrypted successfully!\n\nClick the download button to save it.`;
+                        } else {
+                            outputText.value = arrayBufferToBase64(result);
+                        }
+                    } else {
+                        if (uploadedFile) {
+                            decryptedFileBlob = new Blob([result]);
+                            outputText.value = `✅ File decrypted successfully!\n\nClick the download button to save it.`;
+                        } else {
+                            outputText.value = new TextDecoder().decode(result);
+                        }
+                    }
+
+                } catch (error) {
+                    showAlert(error.message);
+                    outputText.value = '';
+                } finally {
+                    processBtn.innerHTML = originalBtnContent;
+                    processBtn.disabled = false;
+                }
+            });
+
+            generateRsaKeysBtn.addEventListener('click', async () => {
+                const originalBtnContent = generateRsaKeysBtn.innerHTML;
+                generateRsaKeysBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Generating...';
+                generateRsaKeysBtn.disabled = true;
+                try {
+                    rsaKeyPair = await generateRsaKeyPair();
+                    const publicKeyJwk = await window.crypto.subtle.exportKey('jwk', rsaKeyPair.publicKey);
+                    const privateKeyJwk = await window.crypto.subtle.exportKey('jwk', rsaKeyPair.privateKey);
+                    publicKeyTextarea.value = JSON.stringify(publicKeyJwk, null, 2);
+                    privateKeyTextarea.value = JSON.stringify(privateKeyJwk, null, 2);
+                    rsaKeysDisplay.classList.remove('hidden');
+                } catch (error) {
+                    showAlert('Failed to generate RSA keys.');
+                } finally {
+                    generateRsaKeysBtn.innerHTML = originalBtnContent;
+                    generateRsaKeysBtn.disabled = false;
+                }
+            });
+
+            uploadFileBtn.addEventListener('click', () => fileInput.click());
+            const handleFile = (file) => {
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        uploadedFile = { name: file.name, data: event.target.result };
+                        inputText.value = `File selected: ${file.name} (${Math.round(file.size / 1024)} KB)`;
+                    };
+                    reader.readAsArrayBuffer(file);
+                }
+            };
+            fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+            inputText.addEventListener('dragover', (e) => { e.preventDefault(); inputText.classList.add('drag-over'); });
+            inputText.addEventListener('dragleave', () => inputText.classList.remove('drag-over'));
+            inputText.addEventListener('drop', (e) => { e.preventDefault(); inputText.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
+
+            copyOutputBtn.addEventListener('click', () => {
+                if (!outputText.value) return;
+                navigator.clipboard.writeText(outputText.value).then(() => {
+                    copyOutputBtn.setAttribute('title', 'Copied!');
+                    setTimeout(() => { copyOutputBtn.setAttribute('title', 'Copy'); }, 2000);
+                }).catch(() => showAlert('Failed to copy to clipboard.'));
+            });
+
+            pasteInputBtn.addEventListener('click', async () => {
+                try {
+                    inputText.value = await navigator.clipboard.readText();
+                } catch (err) {
+                     showAlert("Clipboard paste failed. Please use Ctrl+V or Cmd+V.");
+                }
+            });
+
+            downloadOutputBtn.addEventListener('click', () => {
+                if (decryptedFileBlob) {
+                    const filename = uploadedFile.name.replace(/\.enc$/, '');
+                    downloadFile(filename, decryptedFileBlob);
+                } else if (encryptedFileBlob) {
+                    const filename = `${uploadedFile.name}.enc`;
+                    downloadFile(filename, encryptedFileBlob);
+                } else if (outputText.value) {
+                    const filename = currentOperation === 'encrypt' ? 'encrypted-text.txt' : 'decrypted-text.txt';
+                    downloadFile(filename, new Blob([outputText.value], {type: "text/plain"}));
+                }
+            });
+
+            clearInputBtn.addEventListener('click', () => { inputText.value = ''; uploadedFile = null; });
+            clearOutputBtn.addEventListener('click', () => { outputText.value = ''; decryptedFileBlob = null; encryptedFileBlob = null; });
+
+            aesPasswordInput.addEventListener('input', (e) => updatePasswordStrengthUI(e.target.value));
+
+            exportPublicKeyBtn.addEventListener('click', () => { if (publicKeyTextarea.value) downloadFile('public_key.json', new Blob([publicKeyTextarea.value], {type: "application/json"})); });
+            exportPrivateKeyBtn.addEventListener('click', () => { if (privateKeyTextarea.value) downloadFile('private_key.json', new Blob([privateKeyTextarea.value], {type: "application/json"})); });
+
+            importPublicKeyBtn.addEventListener('click', () => publicKeyFileInput.click());
+            importPrivateKeyBtn.addEventListener('click', () => privateKeyFileInput.click());
+
+            const handleKeyFileImport = (file, keyType) => {
+                 if(file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        try {
+                           const keyData = JSON.parse(event.target.result);
+                           const isValid = keyData.kty === 'RSA' && keyData.alg === 'RSA-OAEP-256' && (keyType === 'public' ? true : !!keyData.d);
+                           if(isValid) {
+                               const textarea = keyType === 'public' ? publicKeyTextarea : privateKeyTextarea;
+                               textarea.value = JSON.stringify(keyData, null, 2);
+                               rsaKeysDisplay.classList.remove('hidden');
+                           } else {
+                               showAlert(`Invalid ${keyType} key file format.`);
+                           }
+                        } catch {
+                           showAlert('Could not parse key file. Ensure it is valid JSON.');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            publicKeyFileInput.addEventListener('change', (e) => handleKeyFileImport(e.target.files[0], 'public'));
+            privateKeyFileInput.addEventListener('change', (e) => handleKeyFileImport(e.target.files[0], 'private'));
+
+            // =================================================================================
+            // VII. INITIALIZATION
+            // =================================================================================
+            updateOperationUI();
+            updateAlgorithmUI();
+            updateAlgoTooltip();
+
+            const setupTooltip = (icon, tooltip) => {
+                const canHover = window.matchMedia('(hover: hover)').matches;
+
+                if (canHover) {
+                    icon.addEventListener('mouseenter', () => tooltip.classList.add('show'));
+                    icon.addEventListener('mouseleave', () => {
+                        if (tooltip.dataset.pinned !== 'true') {
+                            tooltip.classList.remove('show');
+                        }
+                    });
+                }
+
+                icon.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isPinned = tooltip.dataset.pinned === 'true';
+
+                    const otherTooltip = tooltip === warningTooltip ? algoTooltip : warningTooltip;
+                    otherTooltip.classList.remove('show');
+                    otherTooltip.dataset.pinned = 'false';
+
+                    if (isPinned) {
+                        tooltip.dataset.pinned = 'false';
+                        tooltip.classList.remove('show');
+                    } else {
+                        tooltip.dataset.pinned = 'true';
+                        tooltip.classList.add('show');
+                    }
+                });
+            };
+
+            setupTooltip(warningIcon, warningTooltip);
+            setupTooltip(algoIcon, algoTooltip);
+
+            window.addEventListener('click', () => {
+                document.querySelectorAll('.tooltip-container').forEach(el => {
+                    el.classList.remove('show');
+                    el.dataset.pinned = 'false';
+                });
+            });
+        });
+    </script>
+</body>
+</html>
