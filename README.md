@@ -170,7 +170,7 @@ Cipher Vault features a modern cybersecurity-inspired interface with:
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/web-crypto-tool.git
+git clone https://github.com/ghostrider-ckoudd/web-crypto-tool.git
 cd web-crypto-tool
 ```
 
